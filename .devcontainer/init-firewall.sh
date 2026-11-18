@@ -4,6 +4,11 @@
 set -euo pipefail
 IFS=$'\n\t'
 
+# In Codespaces the editor connects through GitHub relays on the internet; this allowlist would cut it.
+if [ "${CODESPACES:-}" = "true" ] || [ -n "${CODESPACE_NAME:-}" ] || [ -d /workspaces/.codespaces ]; then
+  echo "Codespaces: firewall not used"; exit 0
+fi
+
 ALLOWED_DOMAINS=(
   api.anthropic.com claude.ai platform.claude.com statsig.anthropic.com sentry.io
   registry.npmjs.org

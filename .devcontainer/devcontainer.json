@@ -2,22 +2,21 @@
   "name": "Life Island",
   "build": { "dockerfile": "Dockerfile" },
   "remoteUser": "pwuser",
-  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=delegated",
-  "workspaceFolder": "/workspace",
   "runArgs": ["--cap-add=NET_ADMIN", "--cap-add=NET_RAW"],
   "mounts": [
-    "source=island-claude-config-${devcontainerId},target=/home/pwuser/.claude,type=volume",
-    "source=island-node-modules-${devcontainerId},target=/workspace/node_modules,type=volume"
+    "source=island-claude-config-${devcontainerId},target=/home/pwuser/.claude,type=volume"
   ],
   "containerEnv": {
     "CLAUDE_CONFIG_DIR": "/home/pwuser/.claude",
     "NODE_OPTIONS": "--max-old-space-size=4096"
   },
   "forwardPorts": [5173, 4173, 8787],
-  "postCreateCommand": "sudo chown pwuser:pwuser /workspace/node_modules && npm ci",
-  "postStartCommand": "sudo /usr/local/bin/init-firewall.sh",
-  "waitFor": "postStartCommand",
+  "postCreateCommand": "sudo chown -R pwuser:pwuser /home/pwuser/.claude && npm ci",
+  // The firewall runs on your own machine only. A codespace is already an isolated machine, and the
+  // firewall would block the connection between the codespace and the browser editor.
+  "postStartCommand": "if [ \"${CODESPACES:-}\" = true ]; then echo 'Codespaces: firewall not used'; else sudo /usr/local/bin/init-firewall.sh; fi",
   "customizations": {
-    "vscode": { "extensions": ["anthropic.claude-code", "dbaeumer.vscode-eslint"] }
+    "vscode": { "extensions": ["anthropic.claude-code", "dbaeumer.vscode-eslint"] },
+    "codespaces": { "openFiles": ["README.md"] }
   }
 }
