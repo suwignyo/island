@@ -3,14 +3,16 @@
  * Later steps add log intake (a log line becomes an agent work item) and visitor messages.
  */
 import { createServer, type Server } from 'node:http';
-import { readFile } from 'node:fs/promises';
-import { buildIsland, validateEntries, type DayEntry } from '@island/world';
+import { readdir, readFile } from 'node:fs/promises';
+import { buildIsland, loadJournal, type DayEntry } from '@island/world';
 
-export async function loadEntries(path: URL): Promise<DayEntry[]> {
-  const entries: unknown = JSON.parse(await readFile(path, 'utf8'));
-  const problems = validateEntries(entries);
-  if (problems.length) throw new Error(`Invalid journal entries:\n${problems.join('\n')}`);
-  return entries as DayEntry[];
+/** Reads the journal: one Markdown file for each day in the directory. */
+export async function loadEntries(dir: URL): Promise<DayEntry[]> {
+  const names = (await readdir(dir)).filter(f => f.endsWith('.md'));
+  const files = Object.fromEntries(await Promise.all(names.map(async f => [f, await readFile(new URL(f, dir), 'utf8')] as const)));
+  const journal = loadJournal(files);
+  if (journal.errors.length) throw new Error(`Invalid journal:\n${journal.errors.join('\n')}`);
+  return journal.entries;
 }
 
 export function createApi(entries: DayEntry[]): Server {

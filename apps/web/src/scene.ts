@@ -7,6 +7,8 @@ export interface WorldScene {
   scene: THREE.Scene;
   sun: THREE.DirectionalLight;
   plotMeshes: Map<number, THREE.Mesh>;
+  /** All trees, bushes and rocks outside the street, merged. */
+  decor: THREE.Mesh | null;
 }
 
 function colorFaces(geo: THREE.BufferGeometry, fn: (x: number, y: number, z: number, c: THREE.Color) => void) {
@@ -91,7 +93,7 @@ export function buildScene(island: Island): WorldScene {
   }, 2, 0.95));
 
   // sea with depth rings, and a foam line on the coast
-  scene.add(grid(R * 8, Math.round(R * 4), (x, z) => 0.035 * Math.sin(x * 0.7 + z * 0.4) + 0.03 * Math.sin(z * 0.9 - x * 0.3), (x, _y, z, c) => {
+  scene.add(grid(R * 24, Math.round(R * 5), (x, z) => 0.035 * Math.sin(x * 0.7 + z * 0.4) + 0.03 * Math.sin(z * 0.9 - x * 0.3), (x, _y, z, c) => {
     const t = island.coast(x, z);
     c.setHex(K.PALETTE.sea[t < 1.0 ? 0 : t < 1.13 ? 1 : t < 1.36 ? 2 : t < 1.8 ? 3 : 4]);
   }, 3, 0.32));
@@ -139,6 +141,7 @@ export function buildScene(island: Island): WorldScene {
   }
 
   // decor: all in one mesh
+  let decor: THREE.Mesh | null = null;
   {
     const root = new THREE.Group();
     for (const d of island.decor) {
@@ -149,8 +152,8 @@ export function buildScene(island: Island): WorldScene {
           : d.kind === 'bush' ? K.bush(r, d.size, leaf) : K.rock(r, d.size);
       obj.position.set(d.x, d.y, d.z); root.add(obj);
     }
-    if (root.children.length) scene.add(K.bake(root));
+    if (root.children.length) { decor = K.bake(root); scene.add(decor); }
   }
 
-  return { scene, sun, plotMeshes };
+  return { scene, sun, plotMeshes, decor };
 }

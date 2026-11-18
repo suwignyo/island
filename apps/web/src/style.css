@@ -19,3 +19,25 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #dff3ff; fon
   .hint { right: 28px; bottom: 28px; }
 }
 @media (max-width: 420px) { .brand .sub { display: none; } }
+
+/* reading */
+.plot-label { left: 0; top: 0; padding: 6px 11px; border-radius: 12px; font-size: 12px; white-space: nowrap; display: flex; gap: 8px; align-items: baseline; will-change: transform; }
+.plot-label b { font-weight: 800; font-size: 13px; }
+.plot-label span { opacity: 0.7; }
+.plot-label.hidden, .entry.hidden { display: none; }
+.entry { left: 16px; right: 16px; bottom: 16px; padding: 16px 44px 16px 18px; pointer-events: auto; }
+.entry .date { font-size: 12px; letter-spacing: 0.8px; text-transform: uppercase; opacity: 0.66; }
+.entry .text { font-size: 17px; font-weight: 700; line-height: 1.35; margin: 6px 0 10px; }
+.entry .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.entry .chips:empty { display: none; }
+.chip { font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: rgba(40, 70, 120, 0.1); }
+.entry .close { position: absolute; top: 8px; right: 8px; width: 32px; height: 32px; border: 0; border-radius: 10px; background: transparent; color: inherit; font: inherit; font-size: 22px; line-height: 1; cursor: pointer; }
+.entry .close:hover { background: rgba(40, 70, 120, 0.08); }
+.entry .close:focus-visible { outline: 2px solid #3bafa9; }
+@media (min-width: 720px) { .entry { left: 28px; right: auto; bottom: 28px; width: 340px; } }
+
+/* map */
+.mode { right: 16px; top: 16px; padding: 10px 16px; border: 0; font: inherit; font-weight: 800; font-size: 14px; color: var(--ink); cursor: pointer; pointer-events: auto; }
+.mode:hover { background: rgba(255, 255, 255, 0.95); }
+.mode:focus-visible { outline: 2px solid #3bafa9; outline-offset: 2px; }
+@media (min-width: 720px) { .mode { right: 28px; top: 24px; padding: 12px 18px; } }
