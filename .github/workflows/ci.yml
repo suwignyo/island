@@ -3,6 +3,8 @@ on:
   pull_request:
   push:
     branches: [main]
+  # the day agent starts CI this way, because its PRs (made with GITHUB_TOKEN) start no pull_request workflows
+  workflow_dispatch:
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true

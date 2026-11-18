@@ -67,10 +67,11 @@ If no type fits, the agent opens an issue for a new type. It does not make one i
 
 ## How a day becomes an object
 
-1. I write a log line, for example as a GitHub issue from my phone.
-2. The agent opens one PR with one new file, `content/days/NNN.md`: the date, the object type, the tags, and the text. The world computes the plot and the look from the day number.
-3. CI renders the new plot from fixed camera positions. The PR shows the images.
-4. I merge. The site publishes.
+1. I open a "Day log" issue, for example from my phone: one or two sentences, and optionally the object type, tags, and date.
+2. The day agent reads the log and answers with the text, the object type, and the tags. If the log is not safe to publish (names of other people, an address, health or money details), it asks me a question on the issue instead.
+3. Plain code writes one new file, `content/days/NNN.md`, checks the journal, and opens the PR. The world computes the plot and the look from the day number.
+4. CI renders the newest day and the map with the real journal and shows the images in the PR.
+5. I merge. The site publishes.
 
 The raw log stays private. Only text that I approve goes into the public repository.
 

@@ -1,0 +1,13 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["action", "text", "type", "wanted_type", "tags", "question"],
+  "properties": {
+    "action": { "type": "string", "enum": ["add", "ask"] },
+    "text": { "type": "string", "maxLength": 280 },
+    "type": { "type": "string" },
+    "wanted_type": { "type": "string" },
+    "tags": { "type": "array", "items": { "type": "string" }, "maxItems": 3 },
+    "question": { "type": "string" }
+  }
+}
