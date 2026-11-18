@@ -35,3 +35,9 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #dff3ff; fon
 .entry .close:hover { background: rgba(40, 70, 120, 0.08); }
 .entry .close:focus-visible { outline: 2px solid #3bafa9; }
 @media (min-width: 720px) { .entry { left: 28px; right: auto; bottom: 28px; width: 340px; } }
+
+/* map */
+.mode { right: 16px; top: 16px; padding: 10px 16px; border: 0; font: inherit; font-weight: 800; font-size: 14px; color: var(--ink); cursor: pointer; pointer-events: auto; }
+.mode:hover { background: rgba(255, 255, 255, 0.95); }
+.mode:focus-visible { outline: 2px solid #3bafa9; outline-offset: 2px; }
+@media (min-width: 720px) { .mode { right: 28px; top: 24px; padding: 12px 18px; } }

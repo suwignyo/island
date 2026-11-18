@@ -5,7 +5,7 @@ A low-poly 3D island in the browser that grows by one object for each day of the
 ## Layout
 
 - `packages/world`: pure TypeScript, no browser. The island layout, the journal file format and rules, seeded random numbers. All game rules go here.
-- `apps/web`: Vite and Three.js. Draws the state from `packages/world`. `kit.ts` has the shapes, `scene.ts` builds the scene, `reading.ts` has the plot label, the entry panel, and the marker, `main.ts` has the character, camera, input, and the test hooks.
+- `apps/web`: Vite and Three.js. Draws the state from `packages/world`. `kit.ts` has the shapes, `scene.ts` builds the scene, `reading.ts` has the plot label, the entry panel, and the marker, `main.ts` has the character, the street and map camera, input, and the test hooks.
 - `apps/api`: Node HTTP server (stub in step 1). Run with `node src/main.ts` (Node strips the types).
 - `content/days/`: the journal. One Markdown file for each day, named by the day number (`005.md`):
 

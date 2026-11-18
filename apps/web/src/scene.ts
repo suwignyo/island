@@ -93,7 +93,7 @@ export function buildScene(island: Island): WorldScene {
   }, 2, 0.95));
 
   // sea with depth rings, and a foam line on the coast
-  scene.add(grid(R * 8, Math.round(R * 4), (x, z) => 0.035 * Math.sin(x * 0.7 + z * 0.4) + 0.03 * Math.sin(z * 0.9 - x * 0.3), (x, _y, z, c) => {
+  scene.add(grid(R * 24, Math.round(R * 5), (x, z) => 0.035 * Math.sin(x * 0.7 + z * 0.4) + 0.03 * Math.sin(z * 0.9 - x * 0.3), (x, _y, z, c) => {
     const t = island.coast(x, z);
     c.setHex(K.PALETTE.sea[t < 1.0 ? 0 : t < 1.13 ? 1 : t < 1.36 ? 2 : t < 1.8 ? 3 : 4]);
   }, 3, 0.32));

@@ -14,6 +14,8 @@ export function formatDate(iso: string): string {
 export class Reader {
   nearDay: number | null = null;
   openDay: number | null = null;
+  /** On the map: the day under the mouse. */
+  hoverDay: number | null = null;
   private label: HTMLDivElement;
   private panel: HTMLDivElement;
   private marker: THREE.Mesh;
@@ -83,7 +85,8 @@ export class Reader {
   }
 
   /** Called before each render. `time` is simulation time, so tests stay deterministic. */
-  update(player: { x: number; z: number }, camera: THREE.Camera, time: number, width: number, height: number) {
+  update(player: { x: number; z: number }, camera: THREE.Camera, time: number, width: number, height: number, map = false) {
+    if (map) { this.nearDay = null; this.marker.visible = false; this.showLabel(this.hoverDay, camera, width, height, this.touch ? 'Tap to go there' : 'Click to go there'); return; }
     this.nearDay = this.nearest(player.x, player.z);
     if (this.openDay !== null) {
       const p = this.plot(this.openDay)!;
@@ -97,6 +100,12 @@ export class Reader {
     this.marker.rotation.y = time * 1.2;
 
     if (this.openDay === focus) { this.label.classList.add('hidden'); return; }
+    this.showLabel(focus, camera, width, height, this.touch ? 'Tap to read' : 'E to read');
+  }
+
+  private showLabel(day: number | null, camera: THREE.Camera, width: number, height: number, action: string) {
+    if (day === null) { this.label.classList.add('hidden'); return; }
+    const p = this.plot(day)!, top = this.tops.get(day) ?? p.y + 1;
     camera.updateMatrixWorld(); // lookAt() does not update the matrix until the next draw
     this.v.set(p.x, top + 0.75, p.z).project(camera);
     if (this.v.z > 1) { this.label.classList.add('hidden'); return; }
@@ -104,11 +113,12 @@ export class Reader {
     const sx = Math.min(width - 80, Math.max(80, (this.v.x * 0.5 + 0.5) * width));
     const sy = Math.min(height - 120, Math.max(64, (-this.v.y * 0.5 + 0.5) * height));
     this.label.style.transform = `translate(${sx.toFixed(1)}px, ${sy.toFixed(1)}px) translate(-50%, -100%)`;
-    const text = `Day ${focus}`;
-    if (this.label.dataset.day !== String(focus)) {
-      this.label.dataset.day = String(focus);
-      this.label.innerHTML = `<b></b><span>${this.touch ? 'Tap to read' : 'E to read'}</span>`;
-      this.label.querySelector('b')!.textContent = text;
+    const key = `${day}|${action}`;
+    if (this.label.dataset.key !== key) {
+      this.label.dataset.key = key;
+      this.label.innerHTML = '<b></b><span></span>';
+      this.label.querySelector('b')!.textContent = `Day ${day}`;
+      this.label.querySelector('span')!.textContent = action;
     }
     this.label.classList.remove('hidden');
   }
