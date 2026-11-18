@@ -10,5 +10,15 @@ export interface IslandHooks {
   player(): { x: number; z: number; heading: number };
   stats(): { calls: number; triangles: number };
   hideUi(hide: boolean): void;
+  /** The day whose label shows (the visitor is near its door), or null. */
+  nearDay(): number | null;
+  /** The day whose entry panel is open, or null. */
+  openDay(): number | null;
+  /** World position and collision radius of a plot. */
+  plot(day: number): { x: number; z: number; radius: number };
+  /** 0 at the island center, 1 at the coast line. */
+  coast(x: number, z: number): number;
+  /** Screen position of a plot, for tests that tap it. */
+  screenOf(day: number): { x: number; y: number };
 }
 declare global { interface Window { __island: IslandHooks } }

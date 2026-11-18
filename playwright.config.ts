@@ -7,7 +7,9 @@ export default defineConfig({
   fullyParallel: true,
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
   use: { baseURL: 'http://localhost:4173', viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 },
-  expect: { toHaveScreenshot: { maxDiffPixelRatio: 0.002, animations: 'disabled' } },
+  // Renders are exact (fixed seed, no clock, same browser build), so a few pixels of tolerance is enough.
+  // A larger ratio lets small new objects pass without notice.
+  expect: { toHaveScreenshot: { maxDiffPixels: 20, threshold: 0.05, animations: 'disabled' } },
   projects: [
     { name: 'desktop', use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 }, testIgnore: /phone\.spec\.ts/ },
     { name: 'phone', use: { ...devices['Pixel 7'] }, testMatch: /phone\.spec\.ts/ },

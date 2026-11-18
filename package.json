@@ -2,8 +2,13 @@
   "name": "life-island",
   "private": true,
   "type": "module",
-  "workspaces": ["packages/*", "apps/*"],
-  "engines": { "node": ">=22.18" },
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=22.18"
+  },
   "scripts": {
     "dev": "npm run dev -w apps/web",
     "build": "npm run build -w apps/web",
@@ -12,7 +17,9 @@
     "test": "vitest run",
     "e2e": "playwright test --trace off",
     "e2e:update": "playwright test --trace off --update-snapshots",
-    "check": "npm run typecheck && npm test && npm run build && npm run e2e"
+    "check": "npm run typecheck && npm test && npm run build && npm run e2e",
+    "e2e:docker": "docker run --rm --network host -v \"$PWD\":/work -w /work -e CI=1 mcr.microsoft.com/playwright:v1.63.0-noble npx playwright test --trace off",
+    "e2e:docker:update": "docker run --rm --network host -v \"$PWD\":/work -w /work -e CI=1 mcr.microsoft.com/playwright:v1.63.0-noble npx playwright test --trace off --update-snapshots"
   },
   "devDependencies": {
     "@playwright/test": "1.63.0",

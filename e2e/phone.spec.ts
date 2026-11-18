@@ -17,3 +17,13 @@ test('phone layout', async ({ page }) => {
   await page.evaluate(() => window.__island.view('street'));
   await expect(page).toHaveScreenshot('phone-street.png');
 });
+
+test('on a phone, a tap on a near plot opens its entry', async ({ page }) => {
+  await openWorld(page);
+  await page.evaluate(() => window.__island.view('house'));
+  const day = await page.evaluate(() => window.__island.nearDay());
+  const pos = await page.evaluate(d => window.__island.screenOf(d!), day);
+  await page.touchscreen.tap(pos.x, pos.y);
+  await expect(page.locator('.entry .date')).toContainText(`Day ${day}`);
+  await expect(page).toHaveScreenshot('phone-reading.png');
+});
