@@ -32,16 +32,20 @@ test('a click on the ground walks the character there', async ({ page }) => {
   expect(Math.hypot(end.x - start.x, end.z - start.z)).toBeGreaterThan(0.5);
 });
 
-test('the character cannot walk through a house or into the sea', async ({ page }) => {
+test('the character stops at the wall of a house and at the coast', async ({ page }) => {
   await openWorld(page);
   await page.evaluate(() => window.__island.view('house'));
-  await page.keyboard.down('KeyW');
-  await page.evaluate(() => window.__island.step(300));
-  await page.keyboard.up('KeyW');
-  // still in front of the house, not inside it
+  const day = (await page.evaluate(() => window.__island.nearDay()))!;
+  const house = await page.evaluate(d => window.__island.plot(d), day);
+  // walk to the center of the house: the character must stop outside its walls
+  await page.evaluate(h => { window.__island.walkTo(h.x, h.z); window.__island.step(400); }, house);
   const p = await page.evaluate(() => window.__island.player());
-  const blocked = await page.evaluate(({ x, z }) => { window.__island.view('house'); const s = window.__island.player(); return Math.hypot(x - s.x, z - s.z); }, p);
-  expect(blocked).toBeLessThan(1.2);
+  expect(Math.hypot(p.x - house.x, p.z - house.z)).toBeGreaterThan(house.radius);
+
+  // walk far into the sea: the character must stay on land
+  await page.evaluate(() => { window.__island.view('street'); window.__island.walkTo(80, 80); window.__island.step(1200); });
+  const q = await page.evaluate(() => window.__island.player());
+  expect(await page.evaluate(({ x, z }) => window.__island.coast(x, z), q)).toBeLessThan(0.9);
 });
 
 test('street view stays inside the draw call budget', async ({ page }) => {

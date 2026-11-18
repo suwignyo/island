@@ -2,10 +2,10 @@ import '@fontsource/nunito/600.css';
 import '@fontsource/nunito/800.css';
 import './style.css';
 import * as THREE from 'three';
-import { buildIsland, validateEntries, type DayEntry } from '@island/world';
-import entries from '../../../content/days.json';
+import { buildIsland, loadJournal } from '@island/world';
 import { buildScene } from './scene.ts';
 import { character } from './kit.ts';
+import { Reader } from './reading.ts';
 import './test-hooks.ts';
 
 const params = new URLSearchParams(location.search);
@@ -13,9 +13,11 @@ const params = new URLSearchParams(location.search);
 const TEST = params.has('test');
 const FIXED_DT = 1 / 60;
 
-const days = entries as DayEntry[];
-const problems = validateEntries(days);
-if (problems.length) throw new Error(`Invalid journal entries:\n${problems.join('\n')}`);
+// one Markdown file for each day, bundled at build time
+const files = import.meta.glob<string>('../../../content/days/*.md', { query: '?raw', import: 'default', eager: true });
+const journal = loadJournal(files);
+if (journal.errors.length) throw new Error(`Invalid journal:\n${journal.errors.join('\n')}`);
+const days = journal.entries;
 const island = buildIsland(days);
 
 // ---------- renderer and scene ----------
@@ -37,6 +39,9 @@ scene.add(me.group);
 const SPEED = 2.0, TURN = 2.6, BODY = 0.15;
 const player = { x: island.start.x, z: island.start.z, heading: island.start.heading, walk: 0, moving: false };
 let target: { x: number; z: number } | null = null;
+/** A plot the visitor walks to after a tap; its entry opens on arrival. */
+let pendingOpen: number | null = null;
+let simTime = 0;
 const keys = new Set<string>();
 
 function tryMove(dx: number, dz: number): boolean {
@@ -48,12 +53,13 @@ function tryMove(dx: number, dz: number): boolean {
 }
 
 function stepPlayer(dt: number) {
+  simTime += dt;
   let forward = 0, turn = 0;
   if (keys.has('KeyW') || keys.has('ArrowUp')) forward += 1;
   if (keys.has('KeyS') || keys.has('ArrowDown')) forward -= 0.6;
   if (keys.has('KeyA') || keys.has('ArrowLeft')) turn += 1;
   if (keys.has('KeyD') || keys.has('ArrowRight')) turn -= 1;
-  if (forward || turn) target = null;
+  if (forward || turn) { target = null; pendingOpen = null; }
   if (target) {
     const dx = target.x - player.x, dz = target.z - player.z, dist = Math.hypot(dx, dz);
     if (dist < 0.08) target = null;
@@ -72,20 +78,40 @@ function stepPlayer(dt: number) {
     if (!player.moving) target = null;
   }
   player.walk = player.moving ? player.walk + dt * 11 : 0;
+  if (pendingOpen !== null) {
+    const door = island.plots[pendingOpen - 1]!.door;
+    if (Math.hypot(door.x - player.x, door.z - player.z) < 0.45) { reader.open(pendingOpen); pendingOpen = null; target = null; }
+    else if (!target) pendingOpen = null;
+  }
 }
 
 // ---------- camera ----------
+const CAM_BACK = 2.7, CAM_UP = 1.45, LOOK_AHEAD = 1.8;
 const camPos = new THREE.Vector3(), camLook = new THREE.Vector3();
-function cameraGoal(out: { pos: THREE.Vector3; look: THREE.Vector3 }) {
+const goal = { pos: new THREE.Vector3(), look: new THREE.Vector3(), blocked: false };
+const camRay = new THREE.Raycaster();
+const camBlockers: THREE.Object3D[] = [...world.plotMeshes.values(), ...(world.decor ? [world.decor] : [])];
+const head = new THREE.Vector3(), toCam = new THREE.Vector3();
+
+function cameraGoal() {
   const fx = Math.sin(player.heading), fz = Math.cos(player.heading), y = island.height(player.x, player.z);
-  out.pos.set(player.x - fx * 2.7, y + 1.45, player.z - fz * 2.7);
-  out.look.set(player.x + fx * 1.8, y + 0.3, player.z + fz * 1.8);
+  goal.pos.set(player.x - fx * CAM_BACK, y + CAM_UP, player.z - fz * CAM_BACK);
+  goal.look.set(player.x + fx * LOOK_AHEAD, y + 0.3, player.z + fz * LOOK_AHEAD);
+  // if a house or a tree is between the character and the camera, move the camera in front of it
+  head.set(player.x, y + 0.55, player.z);
+  toCam.subVectors(goal.pos, head);
+  const full = toCam.length();
+  camRay.set(head, toCam.normalize());
+  camRay.far = full;
+  const hit = camRay.intersectObjects(camBlockers, false)[0];
+  goal.blocked = !!hit;
+  if (hit) goal.pos.copy(head).addScaledVector(toCam, Math.max(0.5, hit.distance - 0.3));
 }
-const goal = { pos: new THREE.Vector3(), look: new THREE.Vector3() };
 function updateCamera(dt: number, snap = false) {
-  cameraGoal(goal);
+  cameraGoal();
   const k = snap ? 1 : 1 - Math.exp(-dt * 5);
-  camPos.lerp(goal.pos, k); camLook.lerp(goal.look, k);
+  // move in at once when blocked, so the camera never shows the inside of a house
+  camPos.lerp(goal.pos, goal.blocked ? 1 : k); camLook.lerp(goal.look, k);
   camera.position.copy(camPos); camera.lookAt(camLook);
   // the shadow box follows the camera
   sun.target.position.set(camLook.x, 0, camLook.z);
@@ -100,7 +126,14 @@ function syncCharacter() {
 }
 
 // ---------- input ----------
-addEventListener('keydown', e => { if (!e.metaKey && !e.ctrlKey) keys.add(e.code); });
+addEventListener('keydown', e => {
+  if (e.metaKey || e.ctrlKey) return;
+  if (e.code === 'KeyE' && !e.repeat) { reader.toggle(); redraw(); }
+  else if (e.code === 'Escape') { reader.close(); redraw(); }
+  else keys.add(e.code);
+});
+/** In test mode nothing draws on its own, so input that changes the interface draws once. */
+function redraw() { if (TEST) render(); }
 addEventListener('keyup', e => keys.delete(e.code));
 addEventListener('blur', () => keys.clear());
 const raycaster = new THREE.Raycaster(), pointer = new THREE.Vector2();
@@ -113,9 +146,18 @@ canvas.addEventListener('pointerup', e => {
   const rect = canvas.getBoundingClientRect();
   pointer.set(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1);
   raycaster.setFromCamera(pointer, camera);
-  const hit = new THREE.Vector3();
-  if (raycaster.ray.intersectPlane(ground, hit) && island.coast(hit.x, hit.z) < 0.86) target = { x: hit.x, z: hit.z };
+  // a tap on a plot walks to its door and opens the entry; a tap on the ground walks there
+  const plotHit = raycaster.intersectObjects([...world.plotMeshes.values()], false)[0];
+  if (plotHit) {
+    const day = plotHit.object.userData.day as number, door = island.plots[day - 1]!.door;
+    if (Math.hypot(door.x - player.x, door.z - player.z) < 1.5) { reader.open(day); target = null; pendingOpen = null; }
+    else { target = { x: door.x, z: door.z }; pendingOpen = day; }
+  } else {
+    const hit = new THREE.Vector3();
+    if (raycaster.ray.intersectPlane(ground, hit) && island.coast(hit.x, hit.z) < 0.86) { target = { x: hit.x, z: hit.z }; pendingOpen = null; }
+  }
   setHint(false);
+  redraw();
 });
 
 // ---------- interface ----------
@@ -127,6 +169,38 @@ ui.innerHTML = `
 const hint = document.getElementById('hint')!;
 function setHint(show: boolean) { hint.classList.toggle('hidden', !show); }
 addEventListener('keydown', () => setHint(false), { once: true });
+const reader = new Reader(island, days, world.plotMeshes, scene, ui, touch);
+
+/**
+ * Stands the visitor at the door of a plot, turned to it at an angle, so that the camera is
+ * on the street and not inside the plots on the other side. Picks the side with a free view.
+ */
+function standAt(day: number) {
+  const p = island.plots[day - 1]!;
+  const ox = p.door.x - p.x, oz = p.door.z - p.z, l = Math.hypot(ox, oz);
+  const x = p.door.x + (ox / l) * 0.35, z = p.door.z + (oz / l) * 0.35;
+  const toPlot = Math.atan2(p.x - x, p.z - z);
+  // a narrow (phone) screen shows less to the sides, so turn less
+  const t = canvas.clientWidth < canvas.clientHeight ? 0.38 : 0.75;
+  let best = toPlot + t;
+  for (const turn of [t, -t]) {
+    Object.assign(player, { x, z, heading: toPlot + turn });
+    cameraGoal();
+    if (!goal.blocked) { best = toPlot + turn; break; }
+  }
+  Object.assign(player, { x, z, heading: best });
+}
+// a link like #day-5 opens that day
+function openFromHash() {
+  const m = /^#day-(\d+)$/.exec(location.hash), day = m ? Number(m[1]) : 0;
+  if (day < 1 || day > island.dayCount || reader.openDay === day) return;
+  target = null; pendingOpen = null;
+  if (day === 1) Object.assign(player, { x: 0.3, z: 2.6, heading: Math.PI }); else standAt(day);
+  reader.open(day);
+  syncCharacter(); updateCamera(0, true);
+}
+openFromHash();
+addEventListener('hashchange', () => { openFromHash(); redraw(); });
 
 // ---------- loop ----------
 function resize() {
@@ -135,7 +209,7 @@ function resize() {
     renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
   }
 }
-function render() { resize(); renderer.render(scene, camera); }
+function render() { resize(); reader.update(player, camera, simTime, canvas.clientWidth, canvas.clientHeight); renderer.render(scene, camera); }
 
 function step(frames: number) {
   for (let i = 0; i < frames; i++) { stepPlayer(FIXED_DT); updateCamera(FIXED_DT); }
@@ -161,10 +235,7 @@ const VIEWS: Record<string, () => void> = {
 };
 for (const type of ['house', 'tree', 'garden'] as const) {
   VIEWS[type] = () => {
-    const p = island.plots.find(q => q.type === type)!;
-    // stand on the street, look at the plot from the front
-    const bx = p.door.x + (p.door.x - p.x) * 1.0, bz = p.door.z + (p.door.z - p.z) * 1.0;
-    Object.assign(player, { x: bx, z: bz, heading: Math.atan2(p.x - bx, p.z - bz) });
+    standAt(island.plots.find(q => q.type === type)!.day);
   };
 }
 VIEWS.origin = () => { Object.assign(player, { x: 0.3, z: 3.2, heading: Math.PI }); };
@@ -173,9 +244,18 @@ window.__island = {
   ready: true,
   dayCount: island.dayCount,
   step,
-  view(name: string) { const v = VIEWS[name]; if (!v) throw new Error(`unknown view ${name}`); target = null; keys.clear(); v(); syncCharacter(); updateCamera(0, true); render(); },
+  view(name: string) { const v = VIEWS[name]; if (!v) throw new Error(`unknown view ${name}`); target = null; pendingOpen = null; keys.clear(); reader.close(); v(); syncCharacter(); updateCamera(0, true); render(); },
   walkTo(x: number, z: number) { target = { x, z }; },
   player: () => ({ x: player.x, z: player.z, heading: player.heading }),
   stats: () => { render(); return { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles }; },
   hideUi(hide: boolean) { ui.style.display = hide ? 'none' : ''; },
+  nearDay: () => reader.nearDay,
+  plot: (day: number) => { const p = island.plots[day - 1]!; return { x: p.x, z: p.z, radius: p.radius }; },
+  coast: (x: number, z: number) => island.coast(x, z),
+  openDay: () => reader.openDay,
+  screenOf(day: number) {
+    camera.updateMatrixWorld();
+    const p = island.plots[day - 1]!, v = new THREE.Vector3(p.x, p.y + 0.4, p.z).project(camera);
+    return { x: (v.x * 0.5 + 0.5) * canvas.clientWidth, y: (-v.y * 0.5 + 0.5) * canvas.clientHeight };
+  },
 };

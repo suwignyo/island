@@ -7,6 +7,8 @@ export interface WorldScene {
   scene: THREE.Scene;
   sun: THREE.DirectionalLight;
   plotMeshes: Map<number, THREE.Mesh>;
+  /** All trees, bushes and rocks outside the street, merged. */
+  decor: THREE.Mesh | null;
 }
 
 function colorFaces(geo: THREE.BufferGeometry, fn: (x: number, y: number, z: number, c: THREE.Color) => void) {
@@ -139,6 +141,7 @@ export function buildScene(island: Island): WorldScene {
   }
 
   // decor: all in one mesh
+  let decor: THREE.Mesh | null = null;
   {
     const root = new THREE.Group();
     for (const d of island.decor) {
@@ -149,8 +152,8 @@ export function buildScene(island: Island): WorldScene {
           : d.kind === 'bush' ? K.bush(r, d.size, leaf) : K.rock(r, d.size);
       obj.position.set(d.x, d.y, d.z); root.add(obj);
     }
-    if (root.children.length) scene.add(K.bake(root));
+    if (root.children.length) { decor = K.bake(root); scene.add(decor); }
   }
 
-  return { scene, sun, plotMeshes };
+  return { scene, sun, plotMeshes, decor };
 }

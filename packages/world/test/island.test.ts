@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
-import entries from '../../../content/days.json' with { type: 'json' };
 import { buildIsland, reachable, SPIRAL, validateEntries, type DayEntry, type ObjectType } from '../src/index.ts';
+import { realEntries } from './fixtures.ts';
 
-const real = entries as DayEntry[];
+const real = realEntries();
 const TYPES: ObjectType[] = ['house', 'tree', 'garden'];
 
 /** Makes n valid entries, with types from the given list (or a fixed cycle). */

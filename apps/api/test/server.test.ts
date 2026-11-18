@@ -3,7 +3,7 @@ import type { AddressInfo } from 'node:net';
 import { createApi, loadEntries } from '../src/server.ts';
 
 let base = '';
-const server = createApi(await loadEntries(new URL('../../../content/days.json', import.meta.url)));
+const server = createApi(await loadEntries(new URL('../../../content/days/', import.meta.url)));
 beforeAll(async () => { await new Promise<void>(r => server.listen(0, r)); base = `http://localhost:${(server.address() as AddressInfo).port}`; });
 afterAll(() => { server.close(); });
 
