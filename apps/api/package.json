@@ -1,0 +1,7 @@
+{
+  "name": "@island/api",
+  "private": true,
+  "type": "module",
+  "scripts": { "start": "node src/main.ts" },
+  "dependencies": { "@island/world": "*" }
+}

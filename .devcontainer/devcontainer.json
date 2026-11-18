@@ -1,0 +1,23 @@
+{
+  "name": "Life Island",
+  "build": { "dockerfile": "Dockerfile" },
+  "remoteUser": "pwuser",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=delegated",
+  "workspaceFolder": "/workspace",
+  "runArgs": ["--cap-add=NET_ADMIN", "--cap-add=NET_RAW"],
+  "mounts": [
+    "source=island-claude-config-${devcontainerId},target=/home/pwuser/.claude,type=volume",
+    "source=island-node-modules-${devcontainerId},target=/workspace/node_modules,type=volume"
+  ],
+  "containerEnv": {
+    "CLAUDE_CONFIG_DIR": "/home/pwuser/.claude",
+    "NODE_OPTIONS": "--max-old-space-size=4096"
+  },
+  "forwardPorts": [5173, 4173, 8787],
+  "postCreateCommand": "sudo chown pwuser:pwuser /workspace/node_modules && npm ci",
+  "postStartCommand": "sudo /usr/local/bin/init-firewall.sh",
+  "waitFor": "postStartCommand",
+  "customizations": {
+    "vscode": { "extensions": ["anthropic.claude-code", "dbaeumer.vscode-eslint"] }
+  }
+}
