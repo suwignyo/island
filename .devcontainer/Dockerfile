@@ -20,4 +20,4 @@ RUN chmod 755 /usr/local/bin/init-firewall.sh \
 
 USER pwuser
 ENV DEVCONTAINER=true
-WORKDIR /workspace
+# the editor sets the working folder (Codespaces: /workspaces/island)
