@@ -1,0 +1,33 @@
+name: Day preview
+# Renders the real journal of a PR (the newest day and the map) and shows the images in a PR comment.
+on:
+  pull_request:
+    paths: ['content/days/**']
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: PR number
+        required: true
+permissions: {}
+jobs:
+  preview:
+    # fork PRs get no write token, so they get no preview
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container: mcr.microsoft.com/playwright:v1.63.0-noble
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      HOME: /root
+    steps:
+      - uses: actions/checkout@v6
+      - run: npm ci
+      - run: mkdir -p previews && npx playwright test --config playwright.preview.config.ts --trace off
+      - name: Publish the images in the PR
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number || inputs.pr }}
+          SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: node scripts/preview-publish.ts

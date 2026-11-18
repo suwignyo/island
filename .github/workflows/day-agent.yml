@@ -1,0 +1,97 @@
+name: Day agent
+# A "Day log" issue from the owner becomes one PR with one new file in content/days/.
+# The model only reads the log and answers in a fixed structure (no tools other than Read).
+# Plain code checks the answer, writes the file, and opens the PR.
+on:
+  issues:
+    types: [labeled]
+permissions: {}
+concurrency:
+  group: day-agent
+  cancel-in-progress: false
+jobs:
+  day:
+    # only the owner's own logs; the label is set by the "Day log" issue form
+    if: github.event.label.name == 'log' && github.event.issue.user.login == github.repository_owner && github.event.sender.login == github.repository_owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      actions: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ISSUE: ${{ github.event.issue.number }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm install -g @anthropic-ai/claude-code
+
+      - name: Prepare the input
+        env:
+          BODY: ${{ github.event.issue.body }}
+          CREATED: ${{ github.event.issue.created_at }}
+          TZ_NAME: ${{ vars.DAY_TIMEZONE }}
+        run: node scripts/day-agent.ts prepare
+
+      - name: Ask the model
+        env:
+          OAUTH: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ -n "$API_KEY" ]; then export ANTHROPIC_API_KEY="$API_KEY"; elif [ -n "$OAUTH" ]; then export CLAUDE_CODE_OAUTH_TOKEN="$OAUTH"; else
+            echo "::error::Add the secret CLAUDE_CODE_OAUTH_TOKEN (from claude setup-token) or ANTHROPIC_API_KEY"; exit 1; fi
+          # the whole input is in the prompt; the model gets no tools
+          claude -p "$(cat .day/prompt.md)" \
+            --output-format json \
+            --json-schema "$(cat .github/day-agent/schema.json)" \
+            --permission-mode dontAsk --permission-prompts none \
+            --tools "" \
+            --max-turns 3 --max-budget-usd 0.50 > .day/answer.json
+          node scripts/day-agent.ts finish | tee .day/action.txt
+
+      - name: Ask the owner
+        run: |
+          if [ "$(cat .day/action.txt)" = ask ]; then
+            jq -r '"The day agent needs a change before this can be public:\n\n> " + .question + "\n\nEdit the log, then remove and add the `log` label again."' .day/meta.json > .day/comment.md
+            gh issue comment "$ISSUE" --body-file .day/comment.md
+          fi
+
+      - name: Write the day, test, and open the PR
+        run: |
+          [ "$(cat .day/action.txt)" = add ] || exit 0
+          result=$(node scripts/new-day.ts --from .day/day.json)
+          day=$(echo "$result" | jq -r .day); num=$(printf '%03d' "$day")
+          npm test
+          branch="claude/day-$num"
+          git config user.name "Day agent"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git add "content/days/$num.md"
+          git commit -m "Day $day: $(jq -r .type .day/day.json)" -m "From issue #$ISSUE."
+          git push -u origin "$branch"
+          wanted=$(jq -r .wantedType .day/meta.json); cost=$(jq -r '.costUsd // "unknown"' .day/meta.json)
+          {
+            echo "Day $day from the log in #$ISSUE."
+            echo
+            echo '```markdown'; cat "content/days/$num.md"; echo '```'
+            echo
+            if [ -n "$wanted" ]; then echo "The agent wanted the type **$wanted**, which the game cannot draw yet, and used the nearest type."; echo; fi
+            echo "Model cost of this run: \$$cost (estimate from Claude Code)."
+            echo
+            echo "Closes #$ISSUE"
+          } > .day/pr.md
+          url=$(gh pr create --head "$branch" --base main --title "Day $day" --body-file .day/pr.md)
+          # a PR made with GITHUB_TOKEN starts no pull_request workflows, so start CI and the preview here
+          gh workflow run ci.yml --ref "$branch"
+          gh workflow run day-preview.yml --ref "$branch" -f pr="${url##*/}"
+          gh issue comment "$ISSUE" --body "Day $day is ready for review: $url"
+
+      - name: Report a failure on the issue
+        if: failure()
+        run: gh issue comment "$ISSUE" --body "The day agent failed. See ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"

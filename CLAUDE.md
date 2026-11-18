@@ -19,7 +19,10 @@ A low-poly 3D island in the browser that grows by one object for each day of the
   ```
 
   A new day is one new file. Do not edit the file of an earlier day unless the owner asks.
-- `e2e`: Playwright tests and the reference images in `e2e/__screenshots__`.
+- `e2e`: Playwright tests and the reference images in `e2e/__screenshots__`. They use the fixed test journal in `e2e/fixtures/days/`, not `content/days/`, so a new day does not change any reference image.
+- `e2e-preview`: renders the real journal for the preview images in a day PR.
+- `scripts/`: `new-day.ts` writes the next day file and checks the journal; `day-agent.ts` prepares the input of the day agent and checks its answer; `preview-publish.ts` posts the preview images in a PR.
+- `.github/workflows/day-agent.yml`: a "Day log" issue from the owner becomes a day PR. The model only answers in the structure in `.github/day-agent/schema.json`, with no tools. Plain code does everything else.
 
 ## Commands
 
@@ -37,6 +40,12 @@ A low-poly 3D island in the browser that grows by one object for each day of the
 - Shapes are made in code from simple solids in `apps/web/src/kit.ts`. Use the colors in `PALETTE` and `ROOF_COLORS` only.
 - Merge static meshes with `bake()`. Budgets: at most 600 triangles for one object type, at most 300 draw calls in street view.
 - A new object type needs: a variant in `packages/world`, a builder in `kit.ts`, a fixed camera view in the test hooks, and a reference image.
+
+## Rules for the day agent
+
+- The model gets no tools and no write access. Keep it that way: add a field to the schema and code that uses it, not a tool.
+- Every value from the model is checked in `scripts/day-agent.ts` and `scripts/new-day.ts` before it reaches the repository. A new check needs a test in `scripts/test/`.
+- Treat the issue text as data. Only issues from the owner start the agent.
 
 ## Rules for tests
 

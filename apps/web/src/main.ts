@@ -14,7 +14,10 @@ const TEST = params.has('test');
 const FIXED_DT = 1 / 60;
 
 // one Markdown file for each day, bundled at build time
-const files = import.meta.glob<string>('../../../content/days/*.md', { query: '?raw', import: 'default', eager: true });
+// The browser tests use a fixed journal (e2e/fixtures/days), so that a new day does not change their reference images.
+const files = import.meta.env.VITE_JOURNAL === 'fixture'
+  ? import.meta.glob<string>('../../../e2e/fixtures/days/*.md', { query: '?raw', import: 'default', eager: true })
+  : import.meta.glob<string>('../../../content/days/*.md', { query: '?raw', import: 'default', eager: true });
 const journal = loadJournal(files);
 if (journal.errors.length) throw new Error(`Invalid journal:\n${journal.errors.join('\n')}`);
 const days = journal.entries;

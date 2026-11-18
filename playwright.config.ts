@@ -14,5 +14,6 @@ export default defineConfig({
     { name: 'desktop', use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 }, testIgnore: /phone\.spec\.ts/ },
     { name: 'phone', use: { ...devices['Pixel 7'] }, testMatch: /phone\.spec\.ts/ },
   ],
-  webServer: { command: 'npm run build && npm run preview -w apps/web', url: 'http://localhost:4173', reuseExistingServer: !process.env.CI, timeout: 120_000 },
+  // built with the fixed test journal in e2e/fixtures/days, not the real one
+  webServer: { command: 'npm run build:fixture -w apps/web && npm run preview:fixture -w apps/web', url: 'http://localhost:4173', reuseExistingServer: !process.env.CI, timeout: 120_000 },
 });

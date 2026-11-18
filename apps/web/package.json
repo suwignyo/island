@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "vite --host",
     "build": "vite build",
-    "preview": "vite preview --host --port 4173 --strictPort"
+    "preview": "vite preview --host --port 4173 --strictPort",
+    "build:fixture": "VITE_JOURNAL=fixture vite build --outDir dist-fixture",
+    "preview:fixture": "vite preview --host --port 4173 --strictPort --outDir dist-fixture"
   },
   "dependencies": {
     "@fontsource/nunito": "5.3.0",
